@@ -8,13 +8,34 @@ function Search({ query }) {
   const history = useHistory();
 
   useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
     async function fetchSearchResults() {
-      const res = await fetch(`https://api.github.com/search/repositories?q=${query}`);
-      const responseBody = await res.json();
-      setRepos(responseBody.items || []);
-      console.log("== repos:", responseBody.items);
+      let responseBody = {};
+      try {
+        const res = await fetch(
+          `https://api.github.com/search/repositories?q=${query}`,
+          { signal: controller.signal }
+        );
+        responseBody = await res.json();
+      } catch (e) {
+        if (e instanceof DOMException) {
+          console.log("HTTP request aborted");
+        } else {
+          throw e;
+        }
+      }
+
+      if (!ignore) {
+        setRepos(responseBody.items || []);
+        console.log("== repos:", responseBody.items);
+      }
     }
     fetchSearchResults();
+    return () => {
+      controller.abort();
+      ignore = true;
+    };
   }, [ query ]);
 
   return (
