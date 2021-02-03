@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import fetch from 'isomorphic-unfetch';
 
+import Spinner from '../components/Spinner';
+import ErrorContainer from '../components/ErrorContainer';
+
 function Search({ query }) {
   const [ inputQuery, setInputQuery ] = useState(query || "");
   const [ repos, setRepos ] = useState([]);
+  const [ isLoading, setIsLoading ] = useState(false);
+  const [ isError, setIsError ] = useState(false);
   const history = useHistory();
 
   useEffect(() => {
@@ -12,6 +17,8 @@ function Search({ query }) {
     const controller = new AbortController();
     async function fetchSearchResults() {
       let responseBody = {};
+      setIsLoading(true);
+      setIsError(false);
       try {
         const res = await fetch(
           `https://api.github.com/search/repositories?q=${query}`,
@@ -22,16 +29,20 @@ function Search({ query }) {
         if (e instanceof DOMException) {
           console.log("HTTP request aborted");
         } else {
-          throw e;
+          setIsError(true);
+          console.log(e);
         }
       }
 
       if (!ignore) {
         setRepos(responseBody.items || []);
+        setIsLoading(false);
         console.log("== repos:", responseBody.items);
       }
     }
-    fetchSearchResults();
+    if (query) {
+      fetchSearchResults();
+    }
     return () => {
       controller.abort();
       ignore = true;
@@ -48,13 +59,18 @@ function Search({ query }) {
         <button type="submit">Search</button>
       </form>
       <h2>Search query: {query}</h2>
-      <ul>
-        {repos.map(repo => (
-          <li key={repo.id}>
-            <a href={repo.html_url}>{repo.full_name}</a>
-          </li>
-        ))}
-      </ul>
+      {isError && <ErrorContainer>Error message!</ErrorContainer>}
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <ul>
+          {repos.map(repo => (
+            <li key={repo.id}>
+              <a href={repo.html_url}>{repo.full_name}</a>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
